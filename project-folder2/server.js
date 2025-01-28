@@ -1,20 +1,19 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const cors = require('cors');
+const bodyParser = require('body-parser');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Настройка хранилища для изображений
-const upload = multer({ dest: 'uploads/' });
+app.use(cors());
+app.use(bodyParser.json());
 
-// Статические файлы (HTML, CSS, JS, изображения)
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
+// ✅ Добавляем обработчик для корневого маршрута "/"
+app.get('/', (req, res) => {
+    res.send('Сервер работает! 🚀');
+});
 
-// Хранилище объявлений
-let ads = [];
+let ads = []; // Временное хранилище объявлений
 
 // Получить все объявления
 app.get('/ads', (req, res) => {
@@ -22,17 +21,23 @@ app.get('/ads', (req, res) => {
 });
 
 // Добавить объявление
-app.post('/ads', upload.single('photo'), (req, res) => {
-    const { title, description } = req.body;
-    const photo = `/uploads/${req.file.filename}`;
-    ads.push({ title, description, photo });
-    res.status(201).send('Объявление добавлено!');
+app.post('/ads', (req, res) => {
+    const { title, photo, description, isPremium } = req.body;
+    if (!title || !photo || !description) {
+        return res.status(400).json({ message: 'Все поля обязательны' });
+    }
+    const newAd = { id: ads.length + 1, title, photo, description, isPremium };
+    ads.push(newAd);
+    res.json(newAd);
 });
 
-// Отдавать загруженные файлы
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Удалить объявление
+app.delete('/ads/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    ads = ads.filter(ad => ad.id !== id);
+    res.json({ message: 'Объявление удалено' });
+});
 
-// Запуск сервера
 app.listen(PORT, () => {
-    console.log(`Сервер запущен на http://localhost:${PORT}`);
+    console.log(`Сервер запущен на порту ${PORT}...`);
 });

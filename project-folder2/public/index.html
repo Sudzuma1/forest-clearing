@@ -216,15 +216,21 @@
     </div>
     <a href="https://wa.me/77057247069" class="whatsapp-link" target="_blank">📞</a>
     <script>
+        const API_URL = 'https://forest-clearing.onrender.com';
         const adForm = document.getElementById('adForm');
         const adGrid = document.getElementById('adGrid');
         const promoCodeInput = document.getElementById('promoCode');
 
-        let ads = [];
         let promoUsed = false;
         let promoCodes = [];
 
-        function renderAds() {
+        async function fetchAds() {
+            const response = await fetch(`${API_URL}/ads`);
+            const ads = await response.json();
+            renderAds(ads);
+        }
+
+        function renderAds(ads) {
             adGrid.innerHTML = '';
             ads.forEach(ad => {
                 adGrid.innerHTML += `
@@ -238,32 +244,41 @@
             });
         }
 
-        adForm.addEventListener('submit', (e) => {
+        adForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = document.getElementById('title').value;
             const photo = document.getElementById('photo').files[0];
             const description = document.getElementById('description').value;
 
             const reader = new FileReader();
-            reader.onload = function (e) {
+            reader.onload = async function (e) {
                 const photoURL = e.target.result;
-                ads.push({
-                    id: ads.length + 1,
+                const newAd = {
                     title,
                     photo: photoURL,
                     description,
                     isPremium: promoUsed,
-                });
+                };
                 promoUsed = false;
-                renderAds();
+
+                await fetch(`${API_URL}/ads`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(newAd),
+                });
                 adForm.reset();
+                fetchAds();
             };
             reader.readAsDataURL(photo);
         });
 
-        function deleteAd(id) {
-            ads = ads.filter(ad => ad.id !== id);
-            renderAds();
+        async function deleteAd(id) {
+            await fetch(`${API_URL}/ads/${id}`, {
+                method: 'DELETE',
+            });
+            fetchAds();
         }
 
         function applyPromo() {
@@ -271,8 +286,7 @@
             if (codeIndex !== -1) {
                 alert('Ваше следующее объявление будет премиум!');
                 promoUsed = true;
-                promoCodes.splice(codeIndex, 1); // Удаляем использованный код
-                console.log("Оставшиеся промокоды:", promoCodes);
+                promoCodes.splice(codeIndex, 1);
                 promoCodeInput.value = '';
             } else {
                 alert('Неверный промокод!');
@@ -286,13 +300,10 @@
                 promoCodes.push(code);
             }
             alert(`Сгенерировано ${count} промокодов.`);
-            console.log("Сгенерированные промокоды:", promoCodes);
         }
 
-        // Пример: Сгенерировать 10 промокодов при загрузке страницы
         generatePromoCodes(10);
-
-        renderAds();
+        fetchAds();
     </script>
 </body>
 </html>
