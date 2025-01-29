@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Объявления</title>
+    <title>Объявления "Лесная поляна"</title>
     <style>
-        /* Основные стили */
+        /* Ваши стили */
         body {
             font-family: 'Arial', sans-serif;
             margin: 0;
@@ -13,7 +13,6 @@
             background-color: #f5f7fa;
             color: #333;
         }
-
         header {
             background-color: #007BFF;
             color: white;
@@ -22,21 +21,17 @@
             font-size: 2rem;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
-
         main {
             padding: 20px;
             max-width: 1200px;
             margin: 0 auto;
         }
-
-        /* Карточки объявлений */
         .ad-grid {
             display: flex;
             flex-wrap: wrap;
             gap: 20px;
             justify-content: center;
         }
-
         .ad {
             background: white;
             padding: 15px;
@@ -47,12 +42,10 @@
             overflow: hidden;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-
         .ad:hover {
             transform: translateY(-5px);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
-
         .ad img {
             width: 100%;
             height: 180px;
@@ -60,23 +53,18 @@
             border-radius: 10px;
             margin-bottom: 10px;
         }
-
         .ad h3 {
             font-size: 1.2rem;
             margin: 0 0 5px 0;
         }
-
         .ad p {
             font-size: 0.9rem;
             color: #555;
         }
-
         .ad.gold {
             border: 2px solid gold;
             background: rgba(255, 215, 0, 0.1);
         }
-
-        /* Кнопки */
         .ad button {
             margin-top: 10px;
             background: #ff4d4d;
@@ -87,12 +75,9 @@
             cursor: pointer;
             transition: background 0.2s ease;
         }
-
         .ad button:hover {
             background: #e60000;
         }
-
-        /* Форма добавления */
         form {
             margin: 20px auto;
             max-width: 500px;
@@ -101,7 +86,6 @@
             border-radius: 12px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-
         form input, form textarea, form button {
             width: 100%;
             margin-bottom: 15px;
@@ -109,7 +93,6 @@
             border: 1px solid #ccc;
             border-radius: 8px;
         }
-
         form button {
             background: #007BFF;
             color: white;
@@ -117,12 +100,9 @@
             cursor: pointer;
             transition: background 0.2s ease;
         }
-
         form button:hover {
             background: #0056b3;
         }
-
-        /* Промокоды */
         .promo-box {
             background: white;
             padding: 15px;
@@ -134,11 +114,9 @@
             right: 20px;
             width: 250px;
         }
-
         .promo-box h4 {
             margin: 0 0 10px;
         }
-
         .promo-box input {
             width: 100%;
             padding: 10px;
@@ -146,7 +124,6 @@
             border: 1px solid #ccc;
             border-radius: 5px;
         }
-
         .promo-box button {
             background: gold;
             color: black;
@@ -157,11 +134,9 @@
             border-radius: 5px;
             transition: background 0.2s ease;
         }
-
         .promo-box button:hover {
             background: #ffd700;
         }
-
         footer {
             background: #f5f7fa;
             color: #555;
@@ -170,7 +145,6 @@
             margin-top: 20px;
             border-top: 1px solid #ddd;
         }
-
         .whatsapp-link {
             position: fixed;
             bottom: 90px;
@@ -187,7 +161,6 @@
             justify-content: center;
             text-decoration: none;
         }
-
         .whatsapp-link:hover {
             background: #1da851;
         }
@@ -201,7 +174,7 @@
         <form id="adForm">
             <input type="text" id="title" placeholder="Название объявления" maxlength="50" required>
             <input type="file" id="photo" accept="image/*" required>
-            <textarea id="description" rows="3" placeholder="Описание объявления (до 200 символов)" maxlength="200" required></textarea>
+            <textarea id="description" placeholder="Описание объявления (до 200 символов)" maxlength="200" required></textarea>
             <button type="submit">Добавить объявление</button>
         </form>
         <div class="ad-grid" id="adGrid"></div>
@@ -215,95 +188,138 @@
         <button onclick="applyPromo()">Активировать</button>
     </div>
     <a href="https://wa.me/77057247069" class="whatsapp-link" target="_blank">📞</a>
+
+    <script src="/socket.io/socket.io.js"></script>
     <script>
-        const API_URL = 'https://forest-clearing.onrender.com';
+        const socket = io();
         const adForm = document.getElementById('adForm');
         const adGrid = document.getElementById('adGrid');
         const promoCodeInput = document.getElementById('promoCode');
-
         let promoUsed = false;
         let promoCodes = [];
+        let userAds = { normal: null, premium: null }; // Лимит на объявления
 
-        async function fetchAds() {
-            const response = await fetch(`${API_URL}/ads`);
-            const ads = await response.json();
-            renderAds(ads);
+        // Генерация 20 промокодов
+        function generatePromoCodes(count = 20) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            const codes = [];
+            for (let i = 0; i < count; i++) {
+                let promo = '';
+                for (let j = 0; j < 8; j++) {
+                    promo += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                codes.push(promo);
+            }
+            return codes;
         }
 
-        function renderAds(ads) {
-            adGrid.innerHTML = '';
-            ads.forEach(ad => {
-                adGrid.innerHTML += `
-                    <div class="ad ${ad.isPremium ? 'gold' : ''}">
-                        <img src="${ad.photo}" alt="${ad.title}">
-                        <h3>${ad.title}</h3>
-                        <p>${ad.description}</p>
-                        <button onclick="deleteAd(${ad.id})">Удалить</button>
-                    </div>
-                `;
-            });
-        }
+        // Инициализация промокодов
+        promoCodes = generatePromoCodes();
+        console.log('Доступные промокоды:', promoCodes);
 
-        adForm.addEventListener('submit', async (e) => {
+        // Обработка отправки формы
+        adForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const title = document.getElementById('title').value;
-            const photo = document.getElementById('photo').files[0];
+            const photoFile = document.getElementById('photo').files[0];
             const description = document.getElementById('description').value;
 
-            const reader = new FileReader();
-            reader.onload = async function (e) {
-                const photoURL = e.target.result;
-                const newAd = {
-                    title,
-                    photo: photoURL,
-                    description,
-                    isPremium: promoUsed,
-                };
-                promoUsed = false;
+            // Проверка лимита
+            if (promoUsed && userAds.premium !== null) {
+                alert('Вы уже разместили премиум-объявление!');
+                return;
+            } else if (!promoUsed && userAds.normal !== null) {
+                alert('Вы уже разместили обычное объявление!');
+                return;
+            }
 
-                await fetch(`${API_URL}/ads`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(newAd),
-                });
-                adForm.reset();
-                fetchAds();
-            };
-            reader.readAsDataURL(photo);
+            if (photoFile) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const newAd = {
+                        id: Date.now(),
+                        title,
+                        photo: e.target.result,
+                        description,
+                        isPremium: promoUsed,
+                    };
+
+                    socket.emit('new-ad', newAd);
+                    adForm.reset();
+
+                    // Обновление лимита
+                    if (promoUsed) {
+                        userAds.premium = newAd.id;
+                    } else {
+                        userAds.normal = newAd.id;
+                    }
+                    promoUsed = false;
+                };
+                reader.readAsDataURL(photoFile);
+            }
         });
 
-        async function deleteAd(id) {
-            await fetch(`${API_URL}/ads/${id}`, {
-                method: 'DELETE',
-            });
-            fetchAds();
+        // Отображение новых объявлений
+        socket.on('new-ad', (ad) => {
+            const adElement = document.createElement('div');
+            adElement.className = `ad ${ad.isPremium ? 'gold' : ''}`;
+            adElement.innerHTML = `
+                <img src="${ad.photo}" alt="${ad.title}">
+                <h3>${ad.title}</h3>
+                <p>${ad.description}</p>
+                <button onclick="deleteAd(${ad.id})">Удалить</button>
+            `;
+            adGrid.prepend(adElement);
+        });
+
+        // Удаление объявления
+        function deleteAd(id) {
+            socket.emit('delete-ad', id);
+
+            // Сброс лимита
+            if (userAds.normal === id) {
+                userAds.normal = null;
+            } else if (userAds.premium === id) {
+                userAds.premium = null;
+            }
         }
 
+        // Обработка удаления объявления
+        socket.on('delete-ad', (id) => {
+            const adElement = document.querySelector(`.ad button[onclick="deleteAd(${id})"]`)?.parentElement;
+            if (adElement) adElement.remove();
+        });
+
+        // Отображение начальных объявлений
+        socket.on('initial-ads', (ads) => {
+            adGrid.innerHTML = '';
+            ads.forEach(ad => {
+                const adElement = document.createElement('div');
+                adElement.className = `ad ${ad.isPremium ? 'gold' : ''}`;
+                adElement.innerHTML = `
+                    <img src="${ad.photo}" alt="${ad.title}">
+                    <h3>${ad.title}</h3>
+                    <p>${ad.description}</p>
+                    <button onclick="deleteAd(${ad.id})">Удалить</button>
+                `;
+                adGrid.appendChild(adElement);
+            });
+        });
+
+        // Промокоды
         function applyPromo() {
-            const codeIndex = promoCodes.indexOf(promoCodeInput.value);
-            if (codeIndex !== -1) {
-                alert('Ваше следующее объявление будет премиум!');
+            const code = promoCodeInput.value;
+            if (promoCodes.includes(code)) {
                 promoUsed = true;
-                promoCodes.splice(codeIndex, 1);
-                promoCodeInput.value = '';
+                promoCodes = promoCodes.filter(promo => promo !== code); // Удаление использованного промокода
+                promoCodes.push(generatePromoCodes(1)[0]); // Добавление нового промокода
+                console.log('Обновленные промокоды:', promoCodes);
+                alert('Промокод активирован! Ваше следующее объявление будет премиум.');
             } else {
                 alert('Неверный промокод!');
             }
+            promoCodeInput.value = '';
         }
-
-        function generatePromoCodes(count) {
-            promoCodes = [];
-            for (let i = 0; i < count; i++) {
-                const code = `code${Math.random().toString(36).substring(2, 8)}`;
-                promoCodes.push(code);
-            }
-            alert(`Сгенерировано ${count} промокодов.`);
-        }
-
-        generatePromoCodes(10);
-        fetchAds();
     </script>
 </body>
 </html>

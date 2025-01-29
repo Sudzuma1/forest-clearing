@@ -1,43 +1,45 @@
 const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const server = http.createServer(app);
+const io = new Server(server);
 
-app.use(cors());
-app.use(bodyParser.json());
+// Хранение объявлений в памяти
+let ads = [];
 
-// ✅ Добавляем обработчик для корневого маршрута "/"
-app.get('/', (req, res) => {
-    res.send('Сервер работает! 🚀');
+// Middleware для обработки статических файлов
+app.use(express.static(path.join(__dirname, 'public')));
+
+// WebSocket соединение
+io.on('connection', (socket) => {
+    console.log('Новый пользователь подключен:', socket.id);
+
+    // Отправляем текущие объявления новому пользователю
+    socket.emit('initial-ads', ads);
+
+    // Обработка нового объявления
+    socket.on('new-ad', (ad) => {
+        ads.push(ad);
+        io.emit('new-ad', ad); // Отправляем новое объявление всем клиентам
+    });
+
+    // Обработка удаления объявления
+    socket.on('delete-ad', (id) => {
+        ads = ads.filter(ad => ad.id !== id);
+        io.emit('delete-ad', id); // Уведомляем всех клиентов об удалении
+    });
+
+    // Обработка отключения пользователя
+    socket.on('disconnect', () => {
+        console.log('Пользователь отключен:', socket.id);
+    });
 });
 
-let ads = []; // Временное хранилище объявлений
-
-// Получить все объявления
-app.get('/ads', (req, res) => {
-    res.json(ads);
-});
-
-// Добавить объявление
-app.post('/ads', (req, res) => {
-    const { title, photo, description, isPremium } = req.body;
-    if (!title || !photo || !description) {
-        return res.status(400).json({ message: 'Все поля обязательны' });
-    }
-    const newAd = { id: ads.length + 1, title, photo, description, isPremium };
-    ads.push(newAd);
-    res.json(newAd);
-});
-
-// Удалить объявление
-app.delete('/ads/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    ads = ads.filter(ad => ad.id !== id);
-    res.json({ message: 'Объявление удалено' });
-});
-
-app.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}...`);
+// Запуск сервера
+const PORT = 3000;
+server.listen(PORT, () => {
+    console.log(`Сервер запущен на http://localhost:${PORT}`);
 });
